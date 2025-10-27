@@ -107,7 +107,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-transparent text-white">
+    <div className="flex flex-col h-[100dvh] bg-transparent text-white">
       <header className="flex items-center justify-between bg-gray-900/70 backdrop-blur-sm border-b border-gray-700/80 p-4 shadow-md sticky top-0 z-10">
         <div className="w-9" aria-hidden="true"></div> {/* Spacer to center the title */}
         <div className="text-center">
