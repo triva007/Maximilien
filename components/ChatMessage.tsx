@@ -17,7 +17,7 @@ const TypingIndicator: React.FC = () => (
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isModel = message.role === 'model';
-  const text = message.parts[0].text;
+  const text = message.parts[0]?.text ?? '';
 
   return (
     <div className={`flex items-start gap-3 ${isModel ? 'justify-start' : 'justify-end'}`}>

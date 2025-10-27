@@ -57,22 +57,14 @@ const App: React.FC = () => {
 
     const newMessages: Message[] = [...messages, { role: 'user', parts: [{ text: userMessage }] }];
     setMessages(newMessages);
-    
-    // Add typing indicator
-    setMessages(prev => [...prev, { role: 'model', parts: [{ text: '...' }] }]);
 
     try {
-      // Pass the existing messages as history for context
-      const modelResponse = await sendMessageToModel(userMessage, newMessages.slice(0, -1)); // Send history without the user's last message
-
-      // Replace typing indicator with the actual response
-      setMessages(prev => [...prev.slice(0, -1), { role: 'model', parts: [{ text: modelResponse }] }]);
-
+      const modelResponse = await sendMessageToModel(newMessages);
+      setMessages([...newMessages, { role: 'model', parts: [{ text: modelResponse }] }]);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
       setError(errorMessage);
-       // Replace typing indicator with the error message
-      setMessages(prev => [...prev.slice(0, -1), { role: 'model', parts: [{ text: `Wesh, y'a un problème de connexion là. Mon tel il capte R.` }] }]);
+      setMessages([...newMessages, { role: 'model', parts: [{ text: `Wesh, y'a un problème de connexion là. Mon tel il capte R.` }] }]);
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +92,7 @@ const App: React.FC = () => {
           {messages.map((msg, index) => (
             <ChatMessage key={index} message={msg} />
           ))}
-          {/* Typing indicator is now handled inside handleSendMessage */}
+          {isLoading && <ChatMessage message={{ role: 'model', parts: [{ text: '...' }] }} />}
           <div ref={messagesEndRef} />
         </div>
         {error && (
