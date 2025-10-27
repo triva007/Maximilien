@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import type { Message } from './types';
 import { sendMessageToModel } from './services/gemini';
@@ -7,16 +6,24 @@ import ChatInput from './components/ChatInput';
 import ShareIcon from './components/icons/ShareIcon';
 
 const App: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'model',
-      parts: [{ text: "Wesh gros, c'est Maximilien. T'as un truc à me dire ou quoi ? Dépêche, mon Xmax attend pas." }],
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCopied, setShowCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Simulate Maximilien's arrival
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMessages([
+        {
+          role: 'model',
+          parts: [{ text: "Wesh gros, c'est Maximilien. T'as un truc à me dire ou quoi ? Dépêche, mon Xmax attend pas." }],
+        },
+      ]);
+    }, 500); // Wait half a second before the first message appears
+    return () => clearTimeout(timer);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,6 +59,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (userMessage: string) => {
+    if (messages.length === 0) return; // Prevent sending while initial message is loading
     setIsLoading(true);
     setError(null);
 
@@ -60,19 +68,19 @@ const App: React.FC = () => {
 
     try {
       const modelResponse = await sendMessageToModel(newMessages);
-      setMessages([...newMessages, { role: 'model', parts: [{ text: modelResponse }] }]);
+      setMessages(prev => [...prev, { role: 'model', parts: [{ text: modelResponse }] }]);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
       setError(errorMessage);
-      setMessages([...newMessages, { role: 'model', parts: [{ text: `Wesh, y'a un problème de connexion là. Mon tel il capte R.` }] }]);
+      setMessages(prev => [...prev, { role: 'model', parts: [{ text: `Wesh, y'a un problème de connexion là. Mon tel il capte R.` }] }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
-      <header className="flex items-center justify-between bg-gray-800 border-b border-gray-700 p-4 shadow-md sticky top-0 z-10">
+    <div className="flex flex-col h-screen bg-transparent text-white">
+      <header className="flex items-center justify-between bg-gray-900/70 backdrop-blur-sm border-b border-gray-700/80 p-4 shadow-md sticky top-0 z-10">
         <div className="w-9" aria-hidden="true"></div> {/* Spacer to center the title */}
         <div className="text-center">
             <h1 className="text-xl font-bold text-indigo-400">Maximilien Maubert</h1>
@@ -102,20 +110,19 @@ const App: React.FC = () => {
         )}
       </main>
       
-      <footer className="sticky bottom-0 bg-gray-900">
+      <footer className="sticky bottom-0 bg-gray-900/70 backdrop-blur-sm border-t border-gray-700/80">
         <div className="max-w-4xl mx-auto">
             <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
         </div>
       </footer>
 
-      {showCopied && (
-        <div
-          role="status"
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-20"
-        >
-          Lien copié !
-        </div>
-      )}
+      <div
+        role="status"
+        aria-live="polite"
+        className={`fixed bottom-24 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-20 transition-all duration-300 ease-out ${showCopied ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+      >
+        Lien copié !
+      </div>
     </div>
   );
 };
