@@ -2,7 +2,10 @@ import type { Message } from './types';
 
 // This function now runs on the client (in the browser).
 // It calls our own backend API endpoint, which will then securely call the Gemini API.
-export const sendMessageToModel = async (history: Message[]): Promise<string> => {
+export const sendMessageToModel = async (
+  history: Message[],
+  onChunk: (chunk: string) => void
+): Promise<void> => {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -12,15 +15,24 @@ export const sendMessageToModel = async (history: Message[]): Promise<string> =>
       body: JSON.stringify({ history }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `A server error occurred: ${response.statusText}`);
+    if (!response.ok || !response.body) {
+      const errorData = await response.json().catch(() => ({ error: `A server error occurred: ${response.statusText}` }));
+      throw new Error(errorData.error);
     }
 
-    const data = await response.json();
-    return data.text;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      const chunk = decoder.decode(value, { stream: true });
+      onChunk(chunk);
+    }
   } catch (error) {
-    console.error("Error sending message to backend:", error);
+    console.error("Error streaming message from backend:", error);
     if (error instanceof Error) {
       throw error;
     }

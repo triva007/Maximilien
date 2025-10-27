@@ -31,7 +31,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages]);
 
   const handleShare = async () => {
     const shareData = {
@@ -59,20 +59,48 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (userMessage: string) => {
-    if (messages.length === 0) return; // Prevent sending while initial message is loading
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
 
-    const newMessages: Message[] = [...messages, { role: 'user', parts: [{ text: userMessage }] }];
+    const userMsg: Message = { role: 'user', parts: [{ text: userMessage }] };
+    const loadingMsg: Message = { role: 'model', parts: [{ text: '...' }] };
+
+    const newMessages = [...messages, userMsg, loadingMsg];
     setMessages(newMessages);
 
+    const historyForApi = newMessages.slice(0, -1);
+
     try {
-      const modelResponse = await sendMessageToModel(newMessages);
-      setMessages(prev => [...prev, { role: 'model', parts: [{ text: modelResponse }] }]);
+      let isFirstChunk = true;
+      await sendMessageToModel(historyForApi, (chunk) => {
+        setMessages(prev => {
+          const lastMessageIndex = prev.length - 1;
+          const lastMessage = prev[lastMessageIndex];
+
+          if (lastMessage && lastMessage.role === 'model') {
+            const newText = isFirstChunk ? chunk : lastMessage.parts[0].text + chunk;
+            isFirstChunk = false;
+            const updatedLastMessage = {
+              ...lastMessage,
+              parts: [{ text: newText }]
+            };
+            return [...prev.slice(0, lastMessageIndex), updatedLastMessage];
+          }
+          return prev;
+        });
+      });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
       setError(errorMessage);
-      setMessages(prev => [...prev, { role: 'model', parts: [{ text: `Wesh, y'a un problème de connexion là. Mon tel il capte R.` }] }]);
+      setMessages(prev => {
+          const lastMessageIndex = prev.length - 1;
+          const updatedMessages = [...prev];
+          if (updatedMessages[lastMessageIndex]?.role === 'model') {
+               updatedMessages[lastMessageIndex] = { role: 'model', parts: [{ text: `Wesh, y'a un problème de connexion là. Mon tel il capte R.` }] };
+          }
+          return updatedMessages;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +128,6 @@ const App: React.FC = () => {
           {messages.map((msg, index) => (
             <ChatMessage key={index} message={msg} />
           ))}
-          {isLoading && <ChatMessage message={{ role: 'model', parts: [{ text: '...' }] }} />}
           <div ref={messagesEndRef} />
         </div>
         {error && (

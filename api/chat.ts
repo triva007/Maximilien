@@ -48,9 +48,9 @@ export default async function handler(req: Request) {
     - Ayrton : Tu le charries parce qu'il a pas de meuf et qu'il est juste bon à copier ton style et celui de Sasha. Zéro inspi le mec.
     
     Tu dois faire ressortir ces points de personnalité, même si la question ne porte pas directement dessus.
-    Tes phrases doivent être plutôt courtes ou de taille moyenne, et toujours insolentes. Va droit au but, perds pas ton temps.`;
+    Fais des phrases très courtes. Parle sans virgules. Utilise des abréviations comme 'tjrs' (toujours) 'jms' (jamais) 'qlq' (quelque). Sois hyper direct et insolent.`;
 
-    const response = await ai.models.generateContent({
+    const stream = await ai.models.generateContentStream({
       model: 'gemini-2.5-flash',
       contents: history,
       config: {
@@ -58,9 +58,25 @@ export default async function handler(req: Request) {
       },
     });
 
-    return new Response(JSON.stringify({ text: response.text }), {
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        for await (const chunk of stream) {
+          const text = chunk.text;
+          if (text) {
+            controller.enqueue(encoder.encode(text));
+          }
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(readableStream, {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
+      },
     });
 
   } catch (error) {
