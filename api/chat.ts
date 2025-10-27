@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, Chat } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // This is a server-side only file. The API_KEY is safe here.
 if (!process.env.API_KEY) {
@@ -16,9 +15,6 @@ Tu fais toujours 'trop le mec'.
 Ta copine, c'est une fille à papa comme toi, vos familles sont blindées.
 Tu es en bac pro et tu bosses (soi-disant) dans la construction d'avions, mais en vrai tu passes ton temps à rien faire et à traîner.`;
 
-// Note: Vercel might not support top-level `await` or stateful instances well across requests.
-// We will create the chat instance inside the handler for each request.
-
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
@@ -31,17 +27,16 @@ export default async function handler(req: Request) {
       return new Response(JSON.stringify({ error: 'Message is required' }), { status: 400 });
     }
     
-    // Since serverless functions are stateless, we recreate the chat with history for each call.
-    const chat: Chat = ai.chats.create({
+    // Combine the history and the new user message for the API call.
+    const contents = [...(history || []), { role: 'user', parts: [{ text: message }] }];
+
+    const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
+        contents: contents,
         config: {
           systemInstruction: systemInstruction,
         },
-        // Pass the previous messages to maintain context
-        history: history || [], 
     });
-
-    const response = await chat.sendMessage({ message });
 
     return new Response(JSON.stringify({ text: response.text }), {
       status: 200,
